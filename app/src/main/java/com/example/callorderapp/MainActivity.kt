@@ -20,7 +20,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        Toast.makeText(this, NativeBridge.stringFromJNI(), Toast.LENGTH_LONG).show()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
@@ -42,7 +41,31 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.stopBtn).setOnClickListener {
             recorder.stopRecording()
+            val modelPath = copyModelIfNeeded()
+            val audioPath = File(getExternalFilesDir(null), "order_recording.wav").absolutePath
+
+            Thread {
+                val result = NativeBridge.transcribe(modelPath, audioPath)
+
+                runOnUiThread {
+                    Toast.makeText(this, result, Toast.LENGTH_LONG).show()
+                }
+            }.start()
             Toast.makeText(this, "Recording Saved", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun copyModelIfNeeded(): String {
+        val file = File(filesDir, "ggml-tiny.bin")
+
+        if (!file.exists()) {
+            assets.open("ggml-tiny.bin").use { input ->
+                file.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        }
+
+        return file.absolutePath
     }
 }

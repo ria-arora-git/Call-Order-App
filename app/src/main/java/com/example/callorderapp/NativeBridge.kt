@@ -6,5 +6,5 @@ object NativeBridge {
         System.loadLibrary("native-lib")
     }
 
-    external fun stringFromJNI(): String
+    external fun transcribe(modelPath: String, audioPath: String): String
 }

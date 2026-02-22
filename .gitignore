@@ -12,4 +12,43 @@
 /captures
 .externalNativeBuild
 .cxx
+
+
+# =========================
+# Android / Gradle
+# =========================
+.gradle/
+build/
+app/build/
 local.properties
+*.log
+
+# =========================
+# Android Studio
+# =========================
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# =========================
+# OS Files
+# =========================
+Thumbs.db
+
+# =========================
+# NDK / Native Build
+# =========================
+obj/
+bin/
+
+# =========================
+# Whisper Models (VERY IMPORTANT)
+# =========================
+/app/src/main/assets/*.bin
+
+# =========================
+# Temporary / Generated
+# =========================
+*.apk
+*.aab
