@@ -11,16 +11,24 @@ import androidx.core.content.ContextCompat
 import com.example.callorderapp.audio.AudioRecorderManager
 import java.io.File
 import com.example.callorderapp.NativeBridge
+import android.widget.TextView
 
 class MainActivity : AppCompatActivity() {
-
+    private lateinit var transcriptText: TextView
+    private lateinit var statusText: TextView
     private lateinit var recorder: AudioRecorderManager
     private val REQUEST_CODE = 101
+    private var isProcessing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        statusText = findViewById(R.id.statusText)
+        transcriptText = findViewById(R.id.transcriptText)
+        val recent = loadTranscripts()
+        if (recent.isNotEmpty()) {
+            transcriptText.text = recent.joinToString("\n\n----------------\n\n")
+        }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
 
@@ -40,7 +48,18 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.stopBtn).setOnClickListener {
+
+            if (isProcessing) {
+                statusText.text = "Already processing..."
+                return@setOnClickListener
+            }
+
             recorder.stopRecording()
+
+            isProcessing = true
+            statusText.text = "Processing..."
+            transcriptText.text = ""
+
             val modelPath = copyModelIfNeeded()
             val audioPath = File(getExternalFilesDir(null), "order_recording.wav").absolutePath
 
@@ -48,18 +67,21 @@ class MainActivity : AppCompatActivity() {
                 val result = NativeBridge.transcribe(modelPath, audioPath)
 
                 runOnUiThread {
-                    Toast.makeText(this, result, Toast.LENGTH_LONG).show()
+                    saveTranscript(result)
+                    val recent = loadTranscripts()
+                    transcriptText.text = recent.joinToString("\n\n----------------\n\n")
+                    statusText.text = "Transcription Complete"
+                    isProcessing = false
                 }
             }.start()
-            Toast.makeText(this, "Recording Saved", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun copyModelIfNeeded(): String {
-        val file = File(filesDir, "ggml-tiny.bin")
+        val file = File(filesDir, "ggml-base-q5_1.bin")
 
         if (!file.exists()) {
-            assets.open("ggml-tiny.bin").use { input ->
+            assets.open("ggml-base-q5_1.bin").use { input ->
                 file.outputStream().use { output ->
                     input.copyTo(output)
                 }
@@ -67,5 +89,32 @@ class MainActivity : AppCompatActivity() {
         }
 
         return file.absolutePath
+    }
+
+    private fun saveTranscript(newTranscript: String) {
+        val file = File(filesDir, "transcripts.json")
+
+        val list = if (file.exists()) {
+            file.readText().split("||").toMutableList()
+        } else {
+            mutableListOf()
+        }
+
+        list.add(0, newTranscript) // newest first
+
+        if (list.size > 4) {
+            list.removeAt(list.size - 1)
+        }
+
+        file.writeText(list.joinToString("||"))
+    }
+
+    private fun loadTranscripts(): List<String> {
+        val file = File(filesDir, "transcripts.json")
+        return if (file.exists()) {
+            file.readText().split("||")
+        } else {
+            emptyList()
+        }
     }
 }
